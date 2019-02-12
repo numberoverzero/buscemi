@@ -10,6 +10,7 @@ from typing import AsyncIterator, Generator, List, Optional, Pattern, Union
 __all__ = [
     "AsyncConnection", "BlockingConnection",
     "read", "read_sync", "read_until", "read_until_sync",
+    "sync",
     "write", "write_sync"
 ]
 
@@ -24,7 +25,7 @@ async def _new_conn(executable: str) -> asyncio.subprocess.Process:
     )
 
 
-def _block(future, *, loop=None):
+def sync(future, *, loop=None):
     if loop is None:
         loop = asyncio.get_event_loop()
     return loop.run_until_complete(future)
@@ -38,8 +39,8 @@ class AsyncConnection:
         self.proc = proc
 
     @classmethod
-    def from_executable(cls, executable: str, *, loop=None) -> "AsyncConnection":
-        proc = _block(_new_conn(executable), loop=loop)
+    async def from_executable(cls, executable: str) -> "AsyncConnection":
+        proc = await _new_conn(executable)
         return cls(proc)
 
     async def uci(self) -> List[str]:
@@ -126,47 +127,47 @@ class BlockingConnection:
 
     @classmethod
     def from_executable(cls, executable: str) -> "BlockingConnection":
-        async_conn = AsyncConnection.from_executable(executable)
+        async_conn = sync(AsyncConnection.from_executable(executable))
         return cls(async_conn)
 
     def uci(self) -> List[str]:
-        return _block(self.async_conn.uci())
+        return sync(self.async_conn.uci())
 
     def debug(self, enable: bool = True) -> None:
-        return _block(self.async_conn.debug(enable))
+        return sync(self.async_conn.debug(enable))
 
     def isready(self) -> List[str]:
-        return _block(self.async_conn.isready())
+        return sync(self.async_conn.isready())
 
     def setoption(self, name: str, value: Optional[str] = None) -> None:
-        return _block(self.async_conn.setoption(name, value))
+        return sync(self.async_conn.setoption(name, value))
 
     # NOT SUPPORTED: register
 
     def ucinewgame(self) -> None:
-        return _block(self.async_conn.ucinewgame())
+        return sync(self.async_conn.ucinewgame())
 
     def position(self, fen: Optional[str] = None, moves: Optional[List[str]] = None) -> None:
-        return _block(self.async_conn.position(fen, moves))
+        return sync(self.async_conn.position(fen, moves))
 
     def go(self, args: List[str]) -> None:
-        return _block(self.async_conn.go(args))
+        return sync(self.async_conn.go(args))
 
     def stop(self) -> List[str]:
-        return _block(self.async_conn.stop())
+        return sync(self.async_conn.stop())
 
     def ponderhit(self) -> List[str]:
-        return _block(self.async_conn.ponderhit())
+        return sync(self.async_conn.ponderhit())
 
     def quit(self) -> None:
-        _block(self.async_conn.quit())
+        sync(self.async_conn.quit())
         self.async_conn = None
 
 
 def write_sync(conn: Union[AsyncConnection, BlockingConnection], data: str) -> None:
     if isinstance(conn, BlockingConnection):
         conn = conn.async_conn
-    _block(write(conn, data, wait=True))
+    sync(write(conn, data, wait=True))
 
 
 def read_sync(conn: Union[AsyncConnection, BlockingConnection]) -> Generator[str, None, None]:

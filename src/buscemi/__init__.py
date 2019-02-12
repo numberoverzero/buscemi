@@ -18,8 +18,8 @@ class Engine:
         self._cached_opts = {}
 
     @classmethod
-    def from_executable(cls, executable: str, *, loop=None) -> "Engine":
-        conn = connections.AsyncConnection.from_executable(executable, loop=loop)
+    async def from_executable(cls, executable: str) -> "Engine":
+        conn = await connections.AsyncConnection.from_executable(executable)
         return cls(conn)
 
     async def get_options(self) -> Dict[str, dict]:
