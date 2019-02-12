@@ -1,4 +1,22 @@
-# http://wbec-ridderkerk.nl/html/UCIProtocol.html
+"""
+.. code-block:: python
+
+    >>> conn = BlockingConnection.from_executable("stockfish")
+
+    # https://chess.stackexchange.com/a/12581
+    >>> conn.uci()
+    >>> conn.setoption("MultiPV", "3")
+    >>> conn.ucinewgame()
+    >>> conn.position(fen="N7/P3pk1p/3p2p1/r4p2/8/4b2B/4P1KP/1R6 w - - 0 34")
+    >>> write_sync(conn, "d")
+    >>> for line in read_until_sync(conn, "Checkers"):
+    ...     print(line)
+    >>> conn.isready()
+    >>> conn.go(["movetime", "30000"])
+    >>> for line in read_until_sync(conn, "bestmove"):
+    ...    print(line)
+
+"""
 
 import asyncio
 import asyncio.subprocess
@@ -32,7 +50,13 @@ def sync(future, *, loop=None):
 
 
 class AsyncConnection:
-    """No input or state validation.  Keep track of what your engine is doing somewhere else."""
+    """
+    No input or state validation.  Keep track of what your engine is doing somewhere else.
+
+    .. seealso::
+
+        http://wbec-ridderkerk.nl/html/UCIProtocol.html
+    """
     proc: Optional[asyncio.subprocess.Process]
 
     def __init__(self, proc: asyncio.subprocess.Process) -> None:
@@ -119,7 +143,13 @@ async def read_until(conn: AsyncConnection, pattern: Union[str, Pattern]) -> Asy
 
 
 class BlockingConnection:
-    """No input or state validation.  Keep track of what your engine is doing somewhere else."""
+    """
+    No input or state validation.  Keep track of what your engine is doing somewhere else.
+
+    .. seealso::
+
+        http://wbec-ridderkerk.nl/html/UCIProtocol.html
+    """
     async_conn: AsyncConnection
 
     def __init__(self, async_conn: AsyncConnection) -> None:
