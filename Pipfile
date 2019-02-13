@@ -6,6 +6,8 @@ verify_ssl = true
 [dev-packages]
 importanize = "*"
 ipython = "*"
+flake8 = "*"
+coverage = "*"
 
 [packages]
 buscemi = {editable = true,path = "."}
