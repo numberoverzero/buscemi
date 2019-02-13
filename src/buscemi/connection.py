@@ -56,8 +56,8 @@ class UciConnection:
         await write(self, "ucinewgame")
 
     async def position(self, fen: Optional[str] = None, moves: Optional[Iterable[str]] = None) -> None:
-        if not (bool(fen) ^ bool(moves)):
-            raise ValueError("must specify exactly one of fen or moves")
+        if fen and moves:
+            raise ValueError("must specify only one of fen or moves")
         if fen:
             cmd = f"position fen {fen}"
         else:
@@ -90,23 +90,19 @@ async def write(conn: UciConnection, data: str, wait: bool = True) -> None:
     logger.debug(f">>> {data!r}")
 
 
-async def read(conn: UciConnection, *, timeout: float = None) -> AsyncIterator[str]:
+async def read(conn: UciConnection) -> AsyncIterator[str]:
     readline = conn.proc.stdout.readline
     while True:
-        try:
-            line = await asyncio.wait_for(readline(), timeout=timeout)
-        except asyncio.TimeoutError:
-            continue
-        else:
-            line = line.decode("ascii")
-            logger.debug(f"<<< {line!r}")
-            yield line.strip()
+        line = await readline()
+        line = line.decode("ascii")
+        logger.debug(f"<<< {line!r}")
+        yield line.strip()
 
 
-async def read_until(conn: UciConnection, pattern: Union[str, Pattern], *, timeout=None) -> AsyncIterator[str]:
+async def read_until(conn: UciConnection, pattern: Union[str, Pattern]) -> AsyncIterator[str]:
     if isinstance(pattern, str):
         pattern = re.compile(pattern)
-    async for line in read(conn, timeout=timeout):
+    async for line in read(conn):
         yield line
         if pattern.match(line):
             break

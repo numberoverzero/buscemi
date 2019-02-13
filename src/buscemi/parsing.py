@@ -1,5 +1,5 @@
 import re
-from typing import Any, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple
 
 
 missing = object()
@@ -141,7 +141,7 @@ def format_set_option(opt: dict, value: Any=missing) -> Tuple[str, Optional[str]
 
 
 def format_go_arguments(
-        searchmoves: List[str] = None, ponder: bool = False,
+        searchmoves: Iterable[str] = None, ponder: bool = False,
         wtime: int = None, btime: int = None, winc: int = None, binc: int = None,
         movestogo: int = None, depth: int = None, nodes: int = None, mate: int = None, movetime: int = None,
         infinite: bool = False
