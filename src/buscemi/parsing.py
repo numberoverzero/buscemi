@@ -19,11 +19,11 @@ OPTION_RE = re.compile(
 
 INT_RE = re.compile(
     """^
-        (?P<default>\d+)\s+
+        (?P<default>-?\d+)\s+
         min\s+
-          (?P<min>\d+)\s+
+          (?P<min>-?\d+)\s+
         max\s+
-          (?P<max>\d+)
+          (?P<max>-?\d+)
     $""",
     re.MULTILINE | re.VERBOSE
 )
@@ -151,7 +151,7 @@ def format_go_arguments(
     def _set(name: str, field: Any):
         if field is not None:
             args.append(name)
-            args.append(field)
+            args.append(str(field))
 
     _set("wtime", wtime)
     _set("btime", btime)
