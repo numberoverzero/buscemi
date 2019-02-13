@@ -1,0 +1,112 @@
+import asyncio
+import asyncio.subprocess
+import logging
+import re
+from typing import AsyncIterator, Iterable, List, Optional, Pattern, Union
+
+
+__all__ = ["_UciConnection", "_read", "_read_until", "_write"]
+
+logger = logging.getLogger(__name__)
+
+
+class _UciConnection:
+    """
+    No input or state validation.  Keep track of what your engine is doing somewhere else.
+
+    .. seealso::
+
+        http://wbec-ridderkerk.nl/html/UCIProtocol.html
+    """
+    proc: Optional[asyncio.subprocess.Process]
+
+    def __init__(self, proc: asyncio.subprocess.Process) -> None:
+        self.proc = proc
+
+    @classmethod
+    async def from_executable(cls, executable: str) -> "_UciConnection":
+        proc = await asyncio.create_subprocess_exec(
+            executable,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE
+        )
+        return cls(proc)
+
+    async def uci(self) -> List[str]:
+        await _write(self, "uci")
+        return [x async for x in _read_until(self, "uciok")]
+
+    async def debug(self, enable: bool = True) -> None:
+        mode = "on" if enable else "off"
+        await _write(self, f"debug {mode}")
+
+    async def isready(self) -> List[str]:
+        await _write(self, "isready")
+        return [x async for x in _read_until(self, "readyok")]
+
+    async def setoption(self, name: str, value: Optional[str] = None) -> None:
+        cmd = f"setoption name {name}"
+        if value is not None:
+            cmd += f" value {value}"
+        await _write(self, cmd)
+
+    # NOT SUPPORTED: register
+
+    async def ucinewgame(self) -> None:
+        await _write(self, "ucinewgame")
+
+    async def position(self, fen: Optional[str] = None, moves: Optional[Iterable[str]] = None) -> None:
+        if not (bool(fen) ^ bool(moves)):
+            raise ValueError("must specify exactly one of fen or moves")
+        if fen:
+            cmd = f"position fen {fen}"
+        else:
+            cmd = f"position startpos moves " + " ".join(moves)
+        await _write(self, cmd)
+
+    async def go(self, args: List[str]) -> None:
+        await _write(self, f"go {' '.join(args)}")
+
+    async def stop(self) -> None:
+        await _write(self, "stop")
+
+    async def ponderhit(self) -> None:
+        await _write(self, "ponderhit")
+
+    async def quit(self) -> None:
+        if not self.proc:
+            return
+        await _write(self, "quit")
+        await self.proc.wait()
+        self.proc = None
+
+
+async def _write(conn: _UciConnection, data: str, wait: bool = True) -> None:
+    if not data.endswith("\n"):
+        data += "\n"
+    conn.proc.stdin.write(data.encode("ascii"))
+    if wait:
+        await conn.proc.stdin.drain()
+    logger.debug(f">>> {data!r}")
+
+
+async def _read(conn: _UciConnection, *, timeout: float = None) -> AsyncIterator[str]:
+    readline = conn.proc.stdout.readline
+    while True:
+        try:
+            line = await asyncio.wait_for(readline(), timeout=timeout)
+        except asyncio.TimeoutError:
+            continue
+        else:
+            line = line.decode("ascii")
+            logger.debug(f"<<< {line!r}")
+            yield line.strip()
+
+
+async def _read_until(conn: _UciConnection, pattern: Union[str, Pattern], *, timeout=None) -> AsyncIterator[str]:
+    if isinstance(pattern, str):
+        pattern = re.compile(pattern)
+    async for line in _read(conn, timeout=timeout):
+        yield line
+        if pattern.match(line):
+            break
